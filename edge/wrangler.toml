@@ -1,0 +1,11 @@
+name = "smart-link-interceptor-edge"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+BACKEND_URL = "https://your-backend.onrender.com"
+
+[[kv_namespaces]]
+binding = "LINK_CACHE"
+id = "your-kv-namespace-id"
+# To create: wrangler kv:namespace create "LINK_CACHE"

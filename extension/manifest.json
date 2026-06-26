@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Link Interceptor",
+  "description": "Real-time phishing & malicious link detection for Gmail and WhatsApp Web",
+  "version": "1.0.0",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://web.whatsapp.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*",
+        "https://web.whatsapp.com/*"
+      ],
+      "js": ["whitelist.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["warning.html", "warning.css", "warning.js", "icons/*"],
+      "matches": ["https://mail.google.com/*", "https://web.whatsapp.com/*"]
+    }
+  ]
+}

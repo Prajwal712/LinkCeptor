@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Link Interceptor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="header-brand">
+        <div class="header-icon">🛡️</div>
+        <div class="header-text">
+          <h1>Smart Link Interceptor</h1>
+          <p class="header-subtitle">Phishing Protection Active</p>
+        </div>
+      </div>
+      <div class="status-badge active">
+        <span class="status-dot"></span>
+        Active
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <section class="stats-section">
+      <div class="stat-card stat-total">
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">Links Scanned</div>
+      </div>
+      <div class="stat-card stat-safe">
+        <div class="stat-number" id="stat-safe">0</div>
+        <div class="stat-label">Safe</div>
+      </div>
+      <div class="stat-card stat-blocked">
+        <div class="stat-number" id="stat-blocked">0</div>
+        <div class="stat-label">Blocked</div>
+      </div>
+    </section>
+
+    <!-- Recent Scans -->
+    <section class="history-section">
+      <div class="section-header">
+        <h2>Recent Scans</h2>
+        <button id="btn-clear" class="btn-clear" title="Clear history">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No links scanned yet</p>
+          <p class="empty-hint">Click a link on Gmail or WhatsApp Web to start</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <span>Powered by Gemini AI</span>
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

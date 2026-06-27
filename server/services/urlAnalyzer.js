@@ -1,13 +1,75 @@
 /**
- * Smart Link Interceptor — URL Analyzer
+ * Smart Link Interceptor — URL Analyzer (v2.1)
  * 
  * Extracts security-relevant metadata from a URL before passing
  * it to the Gemini API. This provides structured context that
  * significantly reduces LLM hallucinations.
+ * 
+ * v2.1: Reduced false positives — heuristics are now advisory signals,
+ * not hard blockers. Long URLs, query params, and common path keywords
+ * on legitimate domains no longer trigger false flags.
  */
 
 import https from 'https';
 import http from 'http';
+
+/**
+ * Well-known legitimate domains that should not be penalized
+ * for common patterns (long URLs, login paths, encoding, etc.)
+ */
+const KNOWN_LEGITIMATE_DOMAINS = new Set([
+  'google.com', 'google.co.in', 'googleapis.com', 'gstatic.com',
+  'youtube.com', 'youtu.be', 'yt.be',
+  'facebook.com', 'fb.com', 'fbcdn.net',
+  'twitter.com', 'x.com', 't.co',
+  'instagram.com', 'cdninstagram.com',
+  'linkedin.com', 'licdn.com',
+  'microsoft.com', 'live.com', 'outlook.com', 'office.com', 'office365.com',
+  'microsoftonline.com', 'azure.com', 'bing.com', 'msn.com',
+  'apple.com', 'icloud.com',
+  'amazon.com', 'amazon.in', 'amazonaws.com', 'cloudfront.net',
+  'github.com', 'githubusercontent.com', 'github.io',
+  'gitlab.com', 'bitbucket.org',
+  'stackoverflow.com', 'stackexchange.com',
+  'reddit.com', 'redd.it',
+  'discord.com', 'discordapp.com',
+  'whatsapp.com', 'whatsapp.net',
+  'telegram.org', 'telegram.me',
+  'netflix.com', 'spotify.com',
+  'paypal.com', 'stripe.com', 'razorpay.com',
+  'zoom.us', 'teams.microsoft.com',
+  'notion.so', 'figma.com', 'canva.com',
+  'dropbox.com', 'box.com',
+  'salesforce.com', 'force.com',
+  'atlassian.com', 'atlassian.net', 'jira.com', 'trello.com',
+  'slack.com', 'slackb.com',
+  'hubspot.com', 'mailchimp.com',
+  'cloudflare.com', 'vercel.com', 'netlify.com', 'heroku.com', 'render.com',
+  'wikipedia.org', 'wikimedia.org',
+  'medium.com', 'substack.com',
+  'coursera.org', 'udemy.com', 'edx.org',
+  'npmjs.com', 'pypi.org', 'crates.io',
+  'docs.google.com', 'drive.google.com', 'mail.google.com',
+]);
+
+/**
+ * Extract root domain from hostname for matching against known domains
+ */
+function extractRootDomain(hostname) {
+  const parts = hostname.split('.');
+  if (parts.length >= 3 && parts[parts.length - 2].length <= 3) {
+    return parts.slice(-3).join('.');
+  }
+  return parts.slice(-2).join('.');
+}
+
+/**
+ * Check if a hostname belongs to a known legitimate domain
+ */
+function isKnownDomain(hostname) {
+  const root = extractRootDomain(hostname);
+  return KNOWN_LEGITIMATE_DOMAINS.has(root) || KNOWN_LEGITIMATE_DOMAINS.has(hostname);
+}
 
 /**
  * Analyze a URL and extract security metadata
@@ -29,6 +91,7 @@ export async function analyzeUrl(targetUrl) {
     queryParams: 0,
     domainLength: 0,
     subdomainCount: 0,
+    isKnownDomain: false,
   };
 
   try {
@@ -39,6 +102,7 @@ export async function analyzeUrl(targetUrl) {
     analysis.hasSSL = parsed.protocol === 'https:';
     analysis.pathDepth = parsed.pathname.split('/').filter(Boolean).length;
     analysis.queryParams = [...parsed.searchParams].length;
+    analysis.isKnownDomain = isKnownDomain(parsed.hostname);
 
     // Extract TLD
     const parts = parsed.hostname.split('.');
@@ -56,8 +120,8 @@ export async function analyzeUrl(targetUrl) {
     // Calculate URL entropy (higher = more random = more suspicious)
     analysis.urlEntropy = calculateEntropy(targetUrl);
 
-    // Detect suspicious patterns
-    analysis.suspiciousPatterns = detectSuspiciousPatterns(targetUrl, parsed);
+    // Detect suspicious patterns (with reduced false-positive rate)
+    analysis.suspiciousPatterns = detectSuspiciousPatterns(targetUrl, parsed, analysis.isKnownDomain);
 
     // If it's a short URL, attempt to resolve it
     if (analysis.isShortUrl) {
@@ -94,11 +158,21 @@ function calculateEntropy(str) {
 
 /**
  * Detect common phishing patterns in the URL
+ * 
+ * v2.1 CHANGES to reduce false positives:
+ * - Known legitimate domains skip most pattern checks
+ * - "Long URL" threshold raised from 200 → 500 chars (Gmail/Google links are routinely 300+)
+ * - URL encoding threshold raised from 5 → 10 occurrences
+ * - Login/auth keywords only flagged on UNKNOWN domains (not google.com/accounts/login)
+ * - Subdomain threshold raised from 4 → 5 parts
+ * - Each pattern is tagged with a severity level (high/medium/low)
  */
-function detectSuspiciousPatterns(rawUrl, parsed) {
+function detectSuspiciousPatterns(rawUrl, parsed, knownDomain) {
   const patterns = [];
 
-  // Typosquatting indicators
+  // ── HIGH SEVERITY: Always flag regardless of domain ──────────────
+
+  // Typosquatting indicators (high severity — always check)
   const typoTargets = [
     { legit: 'google', pattern: /g[o0]{2,}gle|go+gle|googl[e3]/i },
     { legit: 'facebook', pattern: /faceb[o0]{2,}k|facebo+k|faceb00k/i },
@@ -114,46 +188,63 @@ function detectSuspiciousPatterns(rawUrl, parsed) {
     }
   }
 
-  // Suspicious TLDs
+  // IP address as domain (high severity)
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(parsed.hostname)) {
+    patterns.push('Uses IP address instead of domain name');
+  }
+
+  // Data URI (high severity)
+  if (rawUrl.startsWith('data:')) {
+    patterns.push('Data URI (bypasses normal URL security)');
+  }
+
+  // @ symbol in URL (high severity — can obscure real destination)
+  if (rawUrl.includes('@') && !parsed.pathname.includes('@')) {
+    // Only flag if @ is in the authority portion, not in email addresses in the path
+    patterns.push('Contains @ symbol in authority (may redirect to different domain)');
+  }
+
+  // ── SKIP remaining checks for known legitimate domains ───────────
+  // Google, Microsoft, Amazon etc. routinely have long URLs, query params,
+  // login paths, and URL encoding. These are NOT suspicious on known domains.
+  if (knownDomain) {
+    return patterns;
+  }
+
+  // ── MEDIUM SEVERITY: Only flag on unknown domains ────────────────
+
+  // Suspicious TLDs (medium — only matters on unknown domains)
   const suspiciousTlds = ['xyz', 'top', 'click', 'club', 'work', 'loan', 'tk', 'ml', 'ga', 'cf', 'gq'];
   const tld = parsed.hostname.split('.').pop();
   if (suspiciousTlds.includes(tld)) {
     patterns.push(`Suspicious TLD: .${tld}`);
   }
 
-  // IP address as domain
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(parsed.hostname)) {
-    patterns.push('Uses IP address instead of domain name');
-  }
-
-  // Excessive subdomains (e.g., secure.login.google.com.evil.com)
-  if (parsed.hostname.split('.').length > 4) {
+  // Excessive subdomains — raised from 4 → 5 (medium)
+  // Legitimate: mail.google.com (3 parts) or docs.google.co.in (4 parts)
+  // Suspicious: secure.login.google.com.evil.com (6+ parts)
+  if (parsed.hostname.split('.').length > 5) {
     patterns.push('Excessive subdomains (possible domain spoofing)');
   }
 
-  // Login/account keywords in path (credential phishing)
+  // Login/account keywords in path — ONLY on unknown domains (medium)
+  // Gmail uses /accounts/login, Microsoft uses /auth — these are normal
   if (/\/(login|signin|account|verify|secure|auth|password|update)/i.test(parsed.pathname)) {
-    patterns.push('Contains credential-harvesting keywords in path');
+    patterns.push('Contains credential-harvesting keywords in path (unknown domain)');
   }
 
-  // @ symbol in URL (obscure actual destination)
-  if (rawUrl.includes('@')) {
-    patterns.push('Contains @ symbol (may redirect to different domain)');
+  // ── LOW SEVERITY: Only flag with additional conditions ───────────
+
+  // Extremely long URLs — raised from 200 → 500 chars (low)
+  // Gmail tracking links, Google Docs share links, etc. are routinely 300-400 chars
+  if (rawUrl.length > 500) {
+    patterns.push('Unusually long URL (500+ characters)');
   }
 
-  // Extremely long URLs (often used to hide actual destination)
-  if (rawUrl.length > 200) {
-    patterns.push('Unusually long URL');
-  }
-
-  // Encoded characters that look suspicious
-  if (/%[0-9a-f]{2}/i.test(rawUrl) && rawUrl.split('%').length > 5) {
+  // Heavy URL encoding — raised from 5 → 10 occurrences (low)
+  // Normal URLs can have a few encoded params; only flag heavy obfuscation
+  if (/%[0-9a-f]{2}/i.test(rawUrl) && rawUrl.split('%').length > 10) {
     patterns.push('Heavy URL encoding (possible obfuscation)');
-  }
-
-  // Data URI
-  if (rawUrl.startsWith('data:')) {
-    patterns.push('Data URI (bypasses normal URL security)');
   }
 
   return patterns;

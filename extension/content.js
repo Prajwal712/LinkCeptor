@@ -1,10 +1,13 @@
 /**
- * Smart Link Interceptor — Content Script
+ * Smart Link Interceptor — Content Script (v2.0)
  * 
  * Injected into Gmail and WhatsApp Web.
  * Intercepts all link clicks during the capturing phase,
  * queries the backend for a safety verdict, and either
  * proceeds or shows a warning.
+ * 
+ * Now saves enriched multi-source data (VT, GSB, timing)
+ * to scan history for display in the popup.
  */
 
 (function () {
@@ -28,7 +31,8 @@
         <div class="sli-spinner"></div>
         <div class="sli-scanning-text">
           <span class="sli-title">🛡️ Smart Link Interceptor</span>
-          <span class="sli-subtitle">Scanning link for threats...</span>
+          <span class="sli-subtitle">Multi-source scan in progress...</span>
+          <span class="sli-scanners">VT + SafeBrowsing + Gemini AI</span>
         </div>
       </div>
     `;
@@ -37,7 +41,7 @@
     // Position the card near the click
     const card = overlay.querySelector('.sli-scanning-card');
     const cardWidth = 320;
-    const cardHeight = 72;
+    const cardHeight = 80;
     let left = x + 12;
     let top = y - cardHeight / 2;
 
@@ -53,9 +57,11 @@
   /**
    * Updates the overlay with the scan result
    */
-  function showResultOverlay(isSafe, reason) {
+  function showResultOverlay(isSafe, reason, timing) {
     const card = document.querySelector('.sli-scanning-card');
     if (!card) return;
+
+    const timingText = timing && timing.totalMs ? ` (${timing.totalMs}ms)` : '';
 
     card.classList.add(isSafe ? 'sli-safe' : 'sli-unsafe');
     card.innerHTML = `
@@ -63,6 +69,7 @@
       <div class="sli-scanning-text">
         <span class="sli-title">${isSafe ? 'Link is Safe' : 'Threat Detected!'}</span>
         <span class="sli-subtitle">${reason || (isSafe ? 'Redirecting...' : 'Navigation blocked')}</span>
+        <span class="sli-scanners">${isSafe ? 'All sources clear' : 'Multi-source detection'}${timingText}</span>
       </div>
     `;
 
@@ -77,8 +84,9 @@
 
   /**
    * Saves scan result to extension storage for the popup stats
+   * Now includes enriched multi-source data
    */
-  function saveScanResult(url, isSafe, reason) {
+  function saveScanResult(url, isSafe, reason, sources, timing) {
     try {
       chrome.runtime.sendMessage({
         action: 'save_scan',
@@ -87,7 +95,9 @@
           isSafe: isSafe,
           reason: reason || '',
           timestamp: Date.now(),
-          site: window.location.hostname
+          site: window.location.hostname,
+          sources: sources || null,
+          timing: timing || null,
         }
       });
     } catch (e) {
@@ -143,26 +153,34 @@
 
         const isSafe = response && response.isSafe;
         const reason = response ? response.reason : 'Unknown';
+        const sources = response ? response.sources : null;
+        const timing = response ? response.timing : null;
 
-        saveScanResult(url, isSafe, reason);
+        saveScanResult(url, isSafe, reason, sources, timing);
 
         if (isSafe) {
-          showResultOverlay(true, reason);
+          showResultOverlay(true, reason, timing);
           setTimeout(() => {
             window.open(url, '_blank');
           }, 600);
         } else {
-          showResultOverlay(false, reason);
+          showResultOverlay(false, reason, timing);
 
-          // Show full warning page
-          const warningUrl = chrome.runtime.getURL('warning.html') +
+          // Build warning URL with source data
+          let warningUrl = chrome.runtime.getURL('warning.html') +
             '?url=' + encodeURIComponent(url) +
             '&reason=' + encodeURIComponent(reason);
+
+          // Append source summary for the warning page
+          if (sources) {
+            warningUrl += '&sources=' + encodeURIComponent(JSON.stringify(sources));
+          }
+
           window.open(warningUrl, '_blank');
         }
       }
     );
   }, true); // Capturing phase
 
-  console.log('[Smart Link Interceptor] Content script loaded on', window.location.hostname);
+  console.log('[Smart Link Interceptor] v2.0 Content script loaded on', window.location.hostname);
 })();

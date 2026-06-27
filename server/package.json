@@ -1,12 +1,17 @@
 {
   "name": "smart-link-interceptor-server",
-  "version": "1.0.0",
-  "description": "Backend API for Smart Link Interceptor — phishing detection powered by Gemini AI",
+  "version": "2.0.0",
+  "description": "Backend API for Smart Link Interceptor — concurrent multi-source phishing detection with Gemini AI as final arbiter",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "cluster": "node cluster.js",
+    "docker:up": "cd .. && docker-compose up -d --build",
+    "docker:down": "cd .. && docker-compose down",
+    "docker:scale": "cd .. && docker-compose up -d --scale server=5",
+    "docker:logs": "cd .. && docker-compose logs -f server"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

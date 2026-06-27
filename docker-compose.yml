@@ -1,0 +1,91 @@
+# ═══════════════════════════════════════════════════════════
+#  Smart Link Interceptor — Docker Compose
+#  Distributed System Architecture
+# ═══════════════════════════════════════════════════════════
+#
+#  Architecture:
+#
+#              Load Balancer (Nginx)
+#             /        |         \
+#        Server 1   Server 2   Server 3
+#             \        |         /
+#              Redis Cache (shared)
+#
+#  Usage:
+#    docker-compose up -d --build
+#    docker-compose up -d --scale server=5   # Scale to 5 instances
+#
+# ═══════════════════════════════════════════════════════════
+
+services:
+
+  # ─── Nginx Load Balancer ──────────────────────────────────
+  # Distributes requests across server instances using
+  # round-robin with least-connections balancing.
+  loadbalancer:
+    image: nginx:alpine
+    container_name: sli-loadbalancer
+    ports:
+      - "3001:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Application Servers (scalable replicas) ──────────────
+  # Each server processes URLs independently.
+  # Scale with: docker-compose up --scale server=N
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+      - GOOGLE_SAFE_BROWSING_API_KEY=${GOOGLE_SAFE_BROWSING_API_KEY}
+      - CACHE_TTL=${CACHE_TTL:-86400}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Redis Cache (shared across all servers) ──────────────
+  # Every server instance reads/writes to the same Redis,
+  # ensuring cache consistency across the distributed system.
+  redis:
+    image: redis:7-alpine
+    container_name: sli-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis-data:
+    driver: local

@@ -1,4 +1,4 @@
-/* Smart Link Interceptor — Content Script Styles */
+/* Smart Link Interceptor — Content Script Styles (v2.0) */
 
 /* Scanning Overlay Container */
 #sli-scanning-overlay {
@@ -30,7 +30,7 @@
   -webkit-backdrop-filter: blur(20px);
   pointer-events: auto;
   animation: sli-slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  min-width: 280px;
+  min-width: 300px;
 }
 
 .sli-scanning-card.sli-safe {
@@ -80,6 +80,14 @@
   font-size: 11px;
   color: #94a3b8;
   letter-spacing: 0.02em;
+}
+
+.sli-scanners {
+  font-size: 9px;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  margin-top: 1px;
 }
 
 /* Animations */

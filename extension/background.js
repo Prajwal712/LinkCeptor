@@ -1,8 +1,11 @@
 /**
- * Smart Link Interceptor — Service Worker (Background Script)
+ * Smart Link Interceptor — Service Worker (Background Script) v2.0
  * 
  * Handles messages from the content script, queries the backend API,
  * and manages scan history in chrome.storage.local.
+ * 
+ * Now passes enriched multi-source data (VT, GSB, timing) through
+ * to the content script and popup for display.
  */
 
 // ─── Configuration ───────────────────────────────────────────────
@@ -12,7 +15,7 @@ const API_ENDPOINT = 'http://localhost:3001/api/verify';
 // or
 // const API_ENDPOINT = 'https://your-backend.onrender.com/api/verify';
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 30000; // Increased for concurrent API calls
 
 // ─── Message Handler ─────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -68,11 +71,15 @@ async function handleLinkCheck(url) {
     }
 
     const data = await response.json();
+
     return {
       isSafe: Boolean(data.isSafe),
       reason: data.reason || 'No details provided',
       confidence: data.confidence || null,
-      cached: data.cached || false
+      cached: data.cached || false,
+      // Pass through enriched multi-source data
+      sources: data.sources || null,
+      timing: data.timing || null,
     };
   } catch (error) {
     clearTimeout(timeoutId);
@@ -135,6 +142,6 @@ chrome.runtime.onInstalled.addListener((details) => {
       scanHistory: [],
       stats: { total: 0, safe: 0, blocked: 0 }
     });
-    console.log('[Smart Link Interceptor] Extension installed successfully');
+    console.log('[Smart Link Interceptor] v2.0 installed — Multi-Source Threat Intelligence active');
   }
 });

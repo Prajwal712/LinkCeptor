@@ -22,7 +22,7 @@
       <h1 class="warning-title">Suspicious Link Detected</h1>
       
       <p class="warning-subtitle">
-        Smart Link Interceptor has flagged this link as potentially dangerous.
+        Smart Link Interceptor has flagged this link using multi-source threat intelligence.
       </p>
 
       <div class="threat-details">
@@ -33,6 +33,34 @@
         <div class="detail-row">
           <span class="detail-label">Threat Reason</span>
           <span class="detail-value threat-reason" id="threat-reason">—</span>
+        </div>
+      </div>
+
+      <!-- Multi-Source Intelligence Panel -->
+      <div id="sources-panel" class="sources-panel" style="display:none;">
+        <div class="sources-title">Threat Intelligence Sources</div>
+        <div class="sources-grid">
+          <div class="source-card" id="src-vt">
+            <div class="source-header">
+              <span class="source-dot vt"></span>
+              <span class="source-name">VirusTotal</span>
+            </div>
+            <div class="source-body" id="src-vt-body">—</div>
+          </div>
+          <div class="source-card" id="src-gsb">
+            <div class="source-header">
+              <span class="source-dot gsb"></span>
+              <span class="source-name">Safe Browsing</span>
+            </div>
+            <div class="source-body" id="src-gsb-body">—</div>
+          </div>
+          <div class="source-card" id="src-heuristics">
+            <div class="source-header">
+              <span class="source-dot heur"></span>
+              <span class="source-name">Heuristics</span>
+            </div>
+            <div class="source-body" id="src-heur-body">—</div>
+          </div>
         </div>
       </div>
 
@@ -55,7 +83,7 @@
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
-        <span>Analysis powered by Gemini AI. Exercise your own judgment.</span>
+        <span>Analysis by VirusTotal + Google Safe Browsing + Gemini AI. Exercise your own judgment.</span>
       </div>
     </div>
   </div>

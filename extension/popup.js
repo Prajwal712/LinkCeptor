@@ -1,7 +1,8 @@
 /**
- * Smart Link Interceptor — Popup Script
+ * Smart Link Interceptor — Popup Script (v2.0)
  * 
  * Loads stats and scan history from chrome.storage via the service worker.
+ * Shows multi-source intelligence badges (VT, GSB, Gemini) in scan results.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,7 +42,28 @@ function loadHistory() {
       const icon = scan.isSafe ? '✅' : '🚨';
       const cls = scan.isSafe ? 'safe' : 'unsafe';
       const time = formatTime(scan.timestamp);
-      const shortUrl = truncateUrl(scan.url, 40);
+      const shortUrl = truncateUrl(scan.url, 36);
+
+      // Build source badges
+      let badges = '';
+      if (scan.sources) {
+        const s = scan.sources;
+        if (s.virusTotal && s.virusTotal.available) {
+          const vtClass = s.virusTotal.malicious > 0 ? 'badge-danger' : 'badge-safe';
+          badges += `<span class="source-badge ${vtClass}" title="VirusTotal: ${s.virusTotal.malicious}/${s.virusTotal.totalEngines} detections">VT:${s.virusTotal.malicious}/${s.virusTotal.totalEngines}</span>`;
+        }
+        if (s.safeBrowsing && s.safeBrowsing.available) {
+          const gsbClass = s.safeBrowsing.isThreat ? 'badge-danger' : 'badge-safe';
+          const gsbText = s.safeBrowsing.isThreat ? '⚠️' : '✓';
+          badges += `<span class="source-badge ${gsbClass}" title="Google Safe Browsing: ${s.safeBrowsing.isThreat ? s.safeBrowsing.threatTypes.join(', ') : 'Clean'}">GSB:${gsbText}</span>`;
+        }
+      }
+
+      // Timing info
+      let timingInfo = '';
+      if (scan.timing && scan.timing.totalMs) {
+        timingInfo = `<span class="timing-badge" title="Total scan time">${scan.timing.totalMs}ms</span>`;
+      }
 
       return `
         <div class="history-item ${cls}" title="${escapeHtml(scan.url)}">
@@ -50,7 +72,10 @@ function loadHistory() {
             <span class="history-url">${escapeHtml(shortUrl)}</span>
             <div class="history-meta">
               <span>${time}</span>
-              <span>·</span>
+              ${badges ? `<span>·</span><span class="source-badges">${badges}</span>` : ''}
+              ${timingInfo}
+            </div>
+            <div class="history-reason-row">
               <span class="history-reason">${escapeHtml(scan.reason || 'No details')}</span>
             </div>
           </div>

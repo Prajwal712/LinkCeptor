@@ -1,4 +1,4 @@
-/* Smart Link Interceptor — Warning Page Styles */
+/* Smart Link Interceptor — Warning Page Styles (v2.0) */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -56,7 +56,7 @@ body {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 560px;
+  max-width: 600px;
   padding: 24px;
 }
 
@@ -148,7 +148,7 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.1);
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   text-align: left;
 }
 
@@ -190,6 +190,87 @@ code.detail-value {
 
 .threat-reason {
   color: #fbbf24;
+}
+
+/* ─── Multi-Source Intelligence Panel ──────────────────── */
+.sources-panel {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.sources-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.sources-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.source-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.source-card.source-danger {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.source-dot.vt {
+  background: #60a5fa;
+  box-shadow: 0 0 4px rgba(96, 165, 250, 0.5);
+}
+
+.source-dot.gsb {
+  background: #34d399;
+  box-shadow: 0 0 4px rgba(52, 211, 153, 0.5);
+}
+
+.source-dot.heur {
+  background: #fbbf24;
+  box-shadow: 0 0 4px rgba(251, 191, 36, 0.5);
+}
+
+.source-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.source-body {
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.source-body small {
+  font-size: 9px;
 }
 
 /* ─── Actions ──────────────────────────────────────────── */

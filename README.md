@@ -1,4 +1,4 @@
-# 🛡️ Smart Link Interceptor v2.0
+# 🛡️ SentinalLink v2.0
 
 **Real-time phishing & malicious link detection with concurrent multi-source threat intelligence.**
 
